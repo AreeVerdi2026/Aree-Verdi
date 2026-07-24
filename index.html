@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Siti Taglio Erba</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+
+<style>
+
+body {
+    margin:0;
+    font-family:Arial;
+}
+
+#titolo {
+    background:#2e7d32;
+    color:white;
+    padding:12px;
+    font-size:22px;
+    font-weight:bold;
+}
+
+#menu {
+    padding:10px;
+    background:#eeeeee;
+}
+
+#cerca {
+    width:280px;
+    padding:8px;
+    font-size:16px;
+}
+
+#contenitore {
+    display:flex;
+    height:80vh;
+}
+
+#elenco {
+    width:300px;
+    overflow-y:auto;
+    border-right:1px solid #aaa;
+    padding:10px;
+}
+
+.sito {
+    padding:8px;
+    cursor:pointer;
+    border-bottom:1px solid #ddd;
+}
+
+.sito:hover {
+    background:#dcedc8;
+}
+
+#map {
+    flex:1;
+}
+
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<div id="titolo">
+🚜 Gestione Siti Taglio Erba
+</div>
+
+
+<div id="menu">
+
+
+
+<br><br>
+
+<input id="cerca" 
+placeholder="Cerca sito..."
+onkeyup="filtraSiti()">
+
+<div id="contatore" style="margin-top:10px;font-weight:bold;color:#2e7d32;">
+Visualizzati: 0 siti
+</div>
+
+<div style="margin-top:10px;">
+
+<button onclick="filtraCategoria('TUTTI')">TUTTI</button>
+<button onclick="filtraCategoria('IDRICO')">🔵 IDRICO</button>
+<button onclick="filtraCategoria('AMBIENTE')">🟢 AMBIENTE</button>
+<button onclick="filtraCategoria('SEDI')">⚪ SEDI</button>
+<button onclick="filtraCategoria('CALORE')">🟠 CALORE</button>
+<button onclick="filtraCategoria('GAS')">🟡 GAS</button>
+
+<br><br>
+
+<button onclick="aggiornaDati()">
+🔄 Aggiorna dati
+</button>
+
+<button onclick="miaPosizione()">
+📍 La mia posizione
+</button>
+
+<button onclick="esportaCSV()">
+📄 Esporta elenco
+</button>
+
+</div>
+
+
+<div id="contenitore">
+
+<div id="elenco"></div>
+
+<div id="map"></div>
+
+</div>
+
+
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+
+<script>
+
+
+var map = L.map('map')
+.setView([44.885,7.340],14);
+
+
+
+L.tileLayer(
+'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+{
+attribution:'OpenStreetMap'
+}
+).addTo(map);
+
+var legenda = L.control({position:'bottomright'});
+
+legenda.onAdd = function(map){
+
+var div = L.DomUtil.create('div','legend');
+
+div.innerHTML =
+"<b>Legenda</b><br>"+
+"<div>🔵 IDRICO</div>"+
+"<div>🟢 AMBIENTE</div>"+
+"<div>⚪ SEDI</div>"+
+"<div>🟠 CALORE</div>"+
+"<div>🟡 GAS</div>";
+
+return div;
+
+};
+
+legenda.addTo(map);
+
+
+var siti=[];
+
+var markerCreati=[];
+
+
+var coloriSito = {
+
+"IDRICO":"blue",
+"AMBIENTE":"green",
+"SEDI":"gray",
+"CALORE":"orange",
+"GAS":"gold"
+
+};
+
+
+function creaIcona(tipo){
+
+var colore = coloriSito[tipo] || "blue";
+
+
+return L.divIcon({
+
+className:"puntino",
+
+html:
+'<div style="background:'+colore+
+';width:18px;height:18px;border-radius:50%;border:2px solid white"></div>',
+
+iconSize:[22,22],
+
+iconAnchor:[11,11]
+
+});
+
+}
+
+window.onload=function(){
+
+fetch("siti.csv")
+.then(function(risposta){
+
+return risposta.text();
+
+})
+.then(function(dati){
+
+caricaCSV(dati);
+
+})
+.catch(function(errore){
+
+alert("Errore caricamento siti.csv");
+
+});
+
+};
+
+document
+.getElementById("fileCSV")
+.addEventListener("change",function(e){
+
+
+var file=e.target.files[0];
+
+var lettore=new FileReader();
+
+
+
+lettore.onload=function(event){
+
+caricaCSV(event.target.result);
+
+};
+
+
+
+lettore.readAsText(file);
+
+
+
+});
+
+
+
+
+
+function caricaCSV(testo){
+
+
+siti=[];
+
+markerCreati=[];
+
+document.getElementById("elenco").innerHTML="";
+
+
+
+var righe=testo.split("\n");
+
+
+
+for(
+var i=1;
+i<righe.length;
+i++
+){
+
+
+var colonne=righe[i].split(";");
+
+
+
+if(colonne.length>=5){
+
+
+var sito={
+
+nome:colonne[0].trim(),
+
+lat:parseFloat(colonne[1]),
+
+lon:parseFloat(colonne[2]),
+
+comune:colonne[3].trim(),
+
+note:colonne[4].trim(),
+
+sito:colonne[5].trim()
+
+};
+
+
+
+siti.push(sito);
+
+
+
+var marker=L.marker(
+[sito.lat,sito.lon],
+{
+icon:creaIcona(sito.sito)
+}
+)
+.addTo(map);
+
+
+
+marker.bindPopup(
+
+"<h3>🚜 "+sito.nome+"</h3>"+
+
+"<b>📍 Comune:</b><br>"+
+sito.comune+
+
+"<br><br>"+
+
+"<b>🏷 Tipo:</b><br>"+
+sito.sito+
+
+"<br><br>"+
+
+"<b>🛠 Note:</b><br>"+
+sito.note+
+
+"<br><br>"+
+
+"<b>🌐 Coordinate:</b><br>"+
+sito.lat+" - "+sito.lon+
+
+"<br><br>"+
+
+"<a target='_blank' href='https://www.google.com/maps/dir/?api=1&destination="
++sito.lat+","+sito.lon+
+"'>🚗 Apri Google Maps</a>"
+
+);
+
+
+markerCreati.push(marker);
+
+
+
+creaVoceLista(sito,marker);
+
+
+
+}
+
+
+}
+
+
+
+map.fitBounds(
+markerCreati.map(function(m){
+return m.getLatLng();
+})
+);
+
+document.getElementById("contatore").innerHTML =
+"Visualizzati: " + siti.length + " siti";
+
+alert("Caricati "+siti.length+" siti");
+
+
+}
+
+
+
+
+
+function creaVoceLista(sito,marker){
+
+
+var div=document.createElement("div");
+
+
+div.className="sito";
+
+
+div.innerHTML=
+"<b>"+sito.nome+"</b><br>"+
+sito.comune+
+"<br>"+
+sito.note;
+
+
+
+div.onclick=function(){
+
+
+map.setView(
+[sito.lat,sito.lon],
+17
+);
+
+
+marker.openPopup();
+
+
+};
+
+
+
+document
+.getElementById("elenco")
+.appendChild(div);
+
+
+}
+
+
+
+
+
+function filtraSiti(){
+
+var testo=document
+.getElementById("cerca")
+.value
+.toUpperCase();
+
+
+var elementi=document
+.getElementsByClassName("sito");
+
+
+for(var i=0;i<elementi.length;i++){
+
+
+var contenuto=elementi[i]
+.innerText
+.toUpperCase();
+
+
+
+if(contenuto.includes(testo))
+{
+elementi[i].style.display="block";
+}
+else
+{
+elementi[i].style.display="none";
+}
+
+
+}
+
+}
+
+function filtraCategoria(tipo){
+
+var conteggio = 0;
+
+
+for(var i=0; i<siti.length; i++){
+
+
+    if(tipo=="TUTTI" || siti[i].sito==tipo){
+
+        markerCreati[i].addTo(map);
+
+        conteggio++;
+
+    } 
+    else {
+
+        map.removeLayer(markerCreati[i]);
+
+    }
+
+}
+
+
+document.getElementById("contatore").innerHTML =
+"Visualizzati: " + conteggio + " siti";
+
+
+}
+
+function aggiornaDati(){
+
+fetch("siti.csv")
+.then(function(risposta){
+
+return risposta.text();
+
+})
+.then(function(dati){
+
+caricaCSV(dati);
+
+})
+.catch(function(){
+
+alert("Errore aggiornamento siti.csv");
+
+});
+
+}
+
+var markerPosizione;
+
+
+function miaPosizione(){
+
+    if(navigator.geolocation){
+
+        navigator.geolocation.getCurrentPosition(function(posizione){
+
+            var lat = posizione.coords.latitude;
+            var lon = posizione.coords.longitude;
+
+
+            if(markerPosizione){
+                map.removeLayer(markerPosizione);
+            }
+
+
+            markerPosizione = L.marker(
+                [lat,lon],
+                {
+                    icon:L.divIcon({
+                        html:"<div style='background:red;width:18px;height:18px;border-radius:50%;border:3px solid white'></div>",
+                        iconSize:[24,24]
+                    })
+                }
+            ).addTo(map);
+
+
+            markerPosizione.bindPopup(
+                "📍 La tua posizione<br>" +
+                lat + " - " + lon
+            )
+            .openPopup();
+
+
+            map.setView(
+                [lat,lon],
+                16
+            );
+
+
+        });
+
+    }
+    else{
+
+        alert("GPS non disponibile");
+
+    }
+
+}
+
+function esportaCSV(){
+
+var csv = "NOME;LATITUDINE;LONGITUDINE;COMUNE;NOTE;SITO\n";
+
+
+for(var i=0;i<siti.length;i++){
+
+
+var markerVisibile = map.hasLayer(markerCreati[i]);
+
+
+if(markerVisibile){
+
+
+csv +=
+siti[i].nome+";"+
+siti[i].lat+";"+
+siti[i].lon+";"+
+siti[i].comune+";"+
+siti[i].note+";"+
+siti[i].sito+
+"\n";
+
+
+}
+
+
+}
+
+
+
+var file = new Blob([csv], {type:"text/csv"});
+
+
+var link = document.createElement("a");
+
+link.href = URL.createObjectURL(file);
+
+link.download="elenco_siti_filtrato.csv";
+
+link.click();
+
+
+}
+
+</script>
+
+
+</body>
+</html>

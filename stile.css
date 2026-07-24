@@ -1,0 +1,74 @@
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+}
+
+#titolo {
+    background: #2e7d32;
+    color: white;
+    padding: 15px;
+    font-size: 22px;
+    font-weight: bold;
+}
+
+#map {
+    height: 90vh;
+}
+
+.legend {
+    background: white;
+    padding: 10px;
+    line-height: 22px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px #999;
+    font-size: 14px;
+}
+
+.legend span {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    margin-right: 6px;
+    border:1px solid #555;
+}
+
+@media (max-width: 700px) {
+
+    #contenitore {
+        display:flex;
+        flex-direction:column;
+        height:75vh;
+    }
+
+    #elenco {
+        width:auto;
+        height:180px;
+        overflow-y:auto;
+        border-right:none;
+        border-bottom:1px solid #aaa;
+    }
+
+    #map {
+        height:100%;
+    }
+
+    button {
+        font-size:16px;
+        padding:10px;
+        margin:3px;
+    }
+
+    #cerca {
+        width:90%;
+        font-size:18px;
+    }
+
+}
+
+
+🔵 IDRICO
+🟢 AMBIENTE
+⚪ SEDI
+🟠 CALORE
+🟡 GAS
